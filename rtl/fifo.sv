@@ -21,14 +21,16 @@ module fifo #(
   output logic                almost_empty_o
 );
 
-  logic [AWIDTH - 1:0] rd_ptr;
-  logic [AWIDTH - 1:0] wr_ptr;
-  logic [DWIDTH - 1:0] q_tmp;
-  logic [1:0]          data_wr_buf;
-  logic [DWIDTH - 1:0] mem [2**AWIDTH - 1:0];
+  logic [AWIDTH - 1:0]      rd_ptr;
+  logic [AWIDTH - 1:0]      wr_ptr;
+  logic [AWIDTH - 1:0]      read_address;
+  logic [DWIDTH - 1:0]      q_tmp;
+  logic [1:0][DWIDTH - 1:0] data_buf;
+  logic [DWIDTH - 1:0]      mem [2**AWIDTH - 1:0];
 
   assign almost_empty_o = ( usedw_o < ALMOST_EMPTY_VALUE );
   assign almost_full_o  = ( usedw_o >= ALMOST_FULL_VALUE );
+  assign q_tmp          = mem[read_address];
   assign q_o            = ( q_tmp );
   assign full_o         = ( usedw_o == 2**AWIDTH);
 
@@ -42,16 +44,12 @@ module fifo #(
 
   always_ff @( posedge clk_i )
     begin
-      if ( empty_o && usedw_o == (AWIDTH + 1)'(0) )
-        q_tmp <= q_tmp;
-      else if ( full_o )
-        q_tmp <= mem[(AWIDTH)'(rd_ptr + 1)];
+      if ( full_o )
+        read_address <= (AWIDTH)'(rd_ptr + 1);
       else if ( !rdreq_i && usedw_o == (AWIDTH + 1)'(1) )
-        q_tmp <= mem[(AWIDTH)'(rd_ptr)];
-      else if ( usedw_o == (AWIDTH + 1)'(0) && !rdreq_i )
-        q_tmp <= mem[(AWIDTH)'(wr_ptr - 1)];
+        read_address <= (AWIDTH)'(rd_ptr);
       else if ( rdreq_i && usedw_o > (AWIDTH + 1)'(1) )
-        q_tmp <= mem[(AWIDTH)'(rd_ptr + 1)];
+        read_address <= (AWIDTH)'(rd_ptr + 1);
     end
 
   always_ff @( posedge clk_i )
@@ -77,78 +75,16 @@ module fifo #(
     begin
       if ( srst_i )
         rd_ptr <= '0;
-      else if ( rdreq_i )
-        begin
-          if ( wrreq_i )
-            begin
-              if ( usedw_o == (AWIDTH + 1)'(1) )
-                begin
-                  rd_ptr <= rd_ptr + (AWIDTH)'(1);
-                end
-              else if ( usedw_o == (AWIDTH + 1)'(0) )
-                begin
-                  rd_ptr <= rd_ptr;
-                end
-              else
-                begin
-                  rd_ptr <= rd_ptr + (AWIDTH)'(1);
-                end
-            end
-          else
-            begin
-              if ( usedw_o == (AWIDTH + 1)'(1) )
-                begin
-                  rd_ptr <= rd_ptr + (AWIDTH)'(1);
-                end
-              else if ( usedw_o == (AWIDTH + 1)'(0) )
-                begin
-                  rd_ptr <= rd_ptr;
-                end
-              else
-                begin
-                  rd_ptr <= rd_ptr + (AWIDTH)'(1);
-                end
-            end
-        end
+      else if ( rdreq_i && !empty_o )
+        rd_ptr <= rd_ptr + (AWIDTH)'(1);
     end
 
   always_ff @( posedge clk_i )
     begin
       if ( srst_i )
         wr_ptr <= '0;
-      else if ( wrreq_i )
-        begin
-          if ( rdreq_i )
-            begin
-              if ( usedw_o == (AWIDTH + 1)'(1) )
-                begin
-                  wr_ptr <= wr_ptr + (AWIDTH)'(1);
-                end
-              else if ( usedw_o == (AWIDTH + 1)'(0) )
-                begin
-                  wr_ptr <= wr_ptr;
-                end
-              else
-                begin
-                  wr_ptr <= wr_ptr + (AWIDTH)'(1);
-                end
-            end
-          else
-            begin
-              if ( usedw_o == (AWIDTH + 1)'(1) )
-                begin
-                  wr_ptr <= wr_ptr + (AWIDTH)'(1);
-                end
-              else if ( usedw_o == (AWIDTH + 1)'(0) )
-                begin
-                  wr_ptr <= wr_ptr + (AWIDTH)'(1);
-                end
-              else
-                begin
-                  wr_ptr <= wr_ptr + (AWIDTH)'(1);
-                end
-            end
-        end
+      else if ( wrreq_i && !full_o )
+        wr_ptr <= wr_ptr + (AWIDTH)'(1);
     end
   
 endmodule

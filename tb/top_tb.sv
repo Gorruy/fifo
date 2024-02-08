@@ -3,7 +3,7 @@
 module top_tb;
 
   parameter DWIDTH              = 32;
-  parameter AWIDTH              = 3;
+  parameter AWIDTH              = 5;
   parameter SHOWAHEAD           = 1;
   parameter ALMOST_FULL_VALUE   = 14;
   parameter ALMOST_EMPTY_VALUE  = 2;
@@ -57,59 +57,59 @@ module top_tb;
       srst_done <= 1'b1;
     end
 
-scfifo #(
-  .lpm_width               ( DWIDTH                ),
-  .lpm_widthu              ( AWIDTH                ),
-  .lpm_numwords            ( 2 ** AWIDTH           ),
-  .lpm_showahead           ( "ON"                  ),
-  .lpm_type                ( "scfifo"              ),
-  .lpm_hint                ( "RAM_BLOCK_TYPE=M10K" ),
-  .intended_device_family  ( "Cyclone V"           ),
-  .underflow_checking      ( "ON"                  ),
-  .overflow_checking       ( "ON"                  ),
-  .allow_rwcycle_when_full ( "OFF"                 ),
-  .use_eab                 ( "ON"                  ),
-  .add_ram_output_register ( "OFF"                 ),
-  .almost_full_value       ( ALMOST_FULL_VALUE     ),
-  .almost_empty_value      ( ALMOST_EMPTY_VALUE    ),
-  .maximum_depth           ( 0                     ),
-  .enable_ecc              ( "FALSE"               )
-) fifo_ref ( 
-  .data                    ( data_ref              ),
-  .clock                   ( clk                   ),
-  .wrreq                   ( wrreq_ref             ),
-  .rdreq                   ( rdreq_ref             ),
-  .aclr                    ( aclr                  ),
-  .sclr                    ( srst                  ),
-  .q                       ( q_ref                 ),
-  .usedw                   ( usedw_ref             ),
-  .full                    ( full_ref              ),
-  .empty                   ( empty_ref             ),
-  .almost_full             ( almost_full_ref       ),
-  .almost_empty            ( almost_empty_ref      ),
-  .eccstatus               ( eccstatus             )
-);
+  scfifo #(
+    .lpm_width               ( DWIDTH                ),
+    .lpm_widthu              ( AWIDTH                ),
+    .lpm_numwords            ( 2 ** AWIDTH           ),
+    .lpm_showahead           ( "ON"                  ),
+    .lpm_type                ( "scfifo"              ),
+    .lpm_hint                ( "RAM_BLOCK_TYPE=M10K" ),
+    .intended_device_family  ( "Cyclone V"           ),
+    .underflow_checking      ( "ON"                  ),
+    .overflow_checking       ( "ON"                  ),
+    .allow_rwcycle_when_full ( "OFF"                 ),
+    .use_eab                 ( "ON"                  ),
+    .add_ram_output_register ( "OFF"                 ),
+    .almost_full_value       ( ALMOST_FULL_VALUE     ),
+    .almost_empty_value      ( ALMOST_EMPTY_VALUE    ),
+    .maximum_depth           ( 0                     ),
+    .enable_ecc              ( "FALSE"               )
+  ) fifo_ref ( 
+    .data                    ( data_ref              ),
+    .clock                   ( clk                   ),
+    .wrreq                   ( wrreq_ref             ),
+    .rdreq                   ( rdreq_ref             ),
+    .aclr                    ( aclr                  ),
+    .sclr                    ( srst                  ),
+    .q                       ( q_ref                 ),
+    .usedw                   ( usedw_ref             ),
+    .full                    ( full_ref              ),
+    .empty                   ( empty_ref             ),
+    .almost_full             ( almost_full_ref       ),
+    .almost_empty            ( almost_empty_ref      ),
+    .eccstatus               ( eccstatus             )
+  );
 
-fifo #(
-  .DWIDTH             ( DWIDTH             ),
-  .AWIDTH             ( AWIDTH             ),
-  .SHOWAHEAD          ( 1                  ),
-  .ALMOST_FULL_VALUE  ( ALMOST_FULL_VALUE  ),
-  .ALMOST_EMPTY_VALUE ( ALMOST_EMPTY_VALUE ),
-  .REGISTER_OUTPUT    ( 0                  )
-) DUT ( 
-  .srst_i             ( srst               ),
-  .data_i             ( data               ),
-  .clk_i              ( clk                ),
-  .wrreq_i            ( wrreq              ),
-  .rdreq_i            ( rdreq              ),
-  .q_o                ( q                  ),
-  .usedw_o            ( usedw              ),
-  .full_o             ( full               ),
-  .empty_o            ( empty              ),
-  .almost_full_o      ( almost_full        ),
-  .almost_empty_o     ( almost_empty       )
-);
+  fifo #(
+    .DWIDTH             ( DWIDTH             ),
+    .AWIDTH             ( AWIDTH             ),
+    .SHOWAHEAD          ( 1                  ),
+    .ALMOST_FULL_VALUE  ( ALMOST_FULL_VALUE  ),
+    .ALMOST_EMPTY_VALUE ( ALMOST_EMPTY_VALUE ),
+    .REGISTER_OUTPUT    ( 0                  )
+  ) DUT ( 
+    .srst_i             ( srst               ),
+    .data_i             ( data               ),
+    .clk_i              ( clk                ),
+    .wrreq_i            ( wrreq              ),
+    .rdreq_i            ( rdreq              ),
+    .q_o                ( q                  ),
+    .usedw_o            ( usedw              ),
+    .full_o             ( full               ),
+    .empty_o            ( empty              ),
+    .almost_full_o      ( almost_full        ),
+    .almost_empty_o     ( almost_empty       )
+  );
 
   mailbox #( logic[DWIDTH - 1:0] ) generated_data[$clog2(NUMBER_OF_TESTS):0];
 
