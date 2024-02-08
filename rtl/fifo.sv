@@ -30,7 +30,7 @@ module fifo #(
   assign almost_empty_o = ( usedw_o < ALMOST_EMPTY_VALUE );
   assign almost_full_o  = ( usedw_o >= ALMOST_FULL_VALUE );
   assign q_o            = ( q_tmp );
-  assign full_o         = ( usedw_o == AWIDTH**2);
+  assign full_o         = ( usedw_o == 2**AWIDTH);
 
   always_ff @( posedge clk_i )
     begin
@@ -52,12 +52,6 @@ module fifo #(
         q_tmp <= mem[(AWIDTH)'(wr_ptr - 1)];
       else if ( rdreq_i && usedw_o > (AWIDTH + 1)'(1) )
         q_tmp <= mem[(AWIDTH)'(rd_ptr + 1)];
-      // if ( rdreq_i && usedw_o >= (AWIDTH + 1)'(1) )
-      //   q_tmp <= mem[rd_ptr];
-      // else if ( usedw_o == (AWIDTH + 1)'(1) && !rdreq_i )
-      //   q_tmp <= mem[rd_ptr];
-      // else if ( rdreq_i )
-      //   q_tmp <= mem[rd_ptr];
     end
 
   always_ff @( posedge clk_i )

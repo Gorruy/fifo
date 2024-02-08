@@ -3,13 +3,14 @@
 module top_tb;
 
   parameter DWIDTH              = 32;
-  parameter AWIDTH              = 4;
+  parameter AWIDTH              = 3;
   parameter SHOWAHEAD           = 1;
   parameter ALMOST_FULL_VALUE   = 14;
   parameter ALMOST_EMPTY_VALUE  = 2;
   parameter REGISTER_OUTPUT     = 0;
 
   parameter NUMBER_OF_TEST_RUNS = 2**AWIDTH * 2;
+  parameter NUMBER_OF_TESTS     = 3;
   parameter TIMEOUT             = 10;
   
   bit                  clk;
@@ -21,7 +22,7 @@ module top_tb;
   logic                aclr;
 
   logic [DWIDTH - 1:0] q_ref;
-  logic [AWIDTH:0]     usedw_ref;
+  logic [AWIDTH - 1:0] usedw_ref;
   logic                full_ref;
   logic                empty_ref;
   logic                almost_full_ref;
@@ -58,7 +59,7 @@ module top_tb;
 
 scfifo #(
   .lpm_width               ( DWIDTH                ),
-  .lpm_widthu              ( AWIDTH + 1            ),
+  .lpm_widthu              ( AWIDTH                ),
   .lpm_numwords            ( 2 ** AWIDTH           ),
   .lpm_showahead           ( "ON"                  ),
   .lpm_type                ( "scfifo"              ),
@@ -110,13 +111,9 @@ fifo #(
   .almost_empty_o     ( almost_empty       )
 );
 
-  mailbox #( logic[DWIDTH - 1:0] ) generated_data[1:0];
+  mailbox #( logic[DWIDTH - 1:0] ) generated_data[$clog2(NUMBER_OF_TESTS):0];
 
-  mailbox #( logic[DWIDTH - 1:0] ) reference_data = new();
-  mailbox #( logic[DWIDTH - 1:0] ) output_data    = new();
-
-
-  task generate_data( mailbox #( logic[DWIDTH - 1:0] ) generated_data[1:0] );
+  task generate_data( mailbox #( logic[DWIDTH - 1:0] ) generated_data[$clog2(NUMBER_OF_TESTS):0] );
     
     logic[DWIDTH - 1:0] gen_data;
 
@@ -131,7 +128,8 @@ fifo #(
   endtask
 
   task send_data ( mailbox #( logic[DWIDTH - 1:0]) generated_data,
-                   int                             no_delay 
+                   int                             no_delay,
+                   int                             one_delay 
                  );
 
     logic[DWIDTH - 1:0] data_to_write;
@@ -139,7 +137,7 @@ fifo #(
     
     while ( generated_data.num() )
       begin
-        random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay;
+        random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay + one_delay;
         ##(random_delay);
 
         generated_data.get( data_to_write );
@@ -167,7 +165,7 @@ fifo #(
 
     timeout_counter = 0;
     
-    while ( timeout_counter != TIMEOUT )
+    while ( timeout_counter != TIMEOUT + 1 )
       begin
         @( posedge clk );
 
@@ -185,7 +183,7 @@ fifo #(
             return;
           end
 
-        if ( usedw !== usedw_ref )
+        if ( usedw[AWIDTH - 1:0] !== usedw_ref )
           begin
             $error( "Different amount of data stored in DUT and ref model! Ref:%d, DUT:%d", usedw, usedw_ref );
             test_succeed = 1'b0;
@@ -221,9 +219,8 @@ fifo #(
 
   endtask
 
-  task read_data( mailbox #( logic[DWIDTH - 1:0] ) reference_data,
-                  mailbox #( logic[DWIDTH - 1:0] ) output_data,
-                  int                              no_delay
+  task read_data( int no_delay, 
+                  int one_delay 
                 );
 
     logic[DWIDTH - 1:0] read_data;
@@ -231,56 +228,19 @@ fifo #(
 
     repeat(NUMBER_OF_TEST_RUNS)
       begin
-        random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay;
+        random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay + one_delay;
         ##(random_delay);
 
         while ( empty_ref === 1'b1 || empty === 1'b1 ) 
-          ##1;
+          begin
+            ##1;
+          end
 
         rdreq_ref = 1'b1;
         rdreq     = 1'b1;
-        @( posedge clk );
+        ##1;
         rdreq_ref = 1'b0;
         rdreq     = 1'b0;
-
-        @( posedge clk );
-
-        read_data = q;
-        output_data.put( read_data );
-
-        read_data = q_ref;
-        reference_data.put( read_data );
-
-      end
-
-  endtask
-
-  task compare_data( mailbox #( logic[DWIDTH - 1:0] ) reference_data,
-                     mailbox #( logic[DWIDTH - 1:0] ) output_data
-                    );
-
-    logic[DWIDTH - 1:0] ref_data, out_data;
-    int                 portion_number;
-
-    if ( reference_data.num() != output_data.num() )
-      begin
-        test_succeed = 1'b0;
-        $error( "DUT and ref model read different amount of data! Ref:%d,DUT:%d", reference_data.num(), output_data.num() );
-        return;
-      end
-
-    while ( reference_data.num() )
-      begin
-        reference_data.get(ref_data);
-        output_data.get(out_data);
-
-        if ( ref_data !== out_data )
-          begin
-            test_succeed = 1'b0;
-            $error( "Data from DUT and ref model differ!: Ref:%b, DUT:%b at:%d", ref_data, out_data, portion_number );
-            return;
-          end
-        portion_number += 1;
       end
 
   endtask
@@ -303,21 +263,27 @@ fifo #(
     wait( srst_done === 1'b1 );
 
     $display("Tests with random delays started!");
-
     fork
-      send_data( generated_data[0], 1 );
+      send_data( generated_data[0], 0, 0 );
       observe_sessions();
-      read_data( reference_data, output_data, 1 );
+      read_data( 0, 0 );
     join
+
     $display("Tests without time delay started!");
-
     fork
-      send_data( generated_data[1], 0 );
+      send_data( generated_data[1], 1, 0 );
       observe_sessions();
-      read_data( reference_data, output_data, 0 );
+      read_data( 1, 0 );
     join
 
-    compare_data( reference_data, output_data );
+    $display("Tests with one read delay started!");
+    fork
+      // checks cases when fifo becomes full
+      send_data( generated_data[2], 1, 0 );
+      observe_sessions();
+      read_data( 1, 1 );
+    join
+
     $display("Simulation is over!");
 
     if ( test_succeed )
