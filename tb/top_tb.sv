@@ -3,13 +3,13 @@
 module top_tb;
 
   parameter DWIDTH              = 32;
-  parameter AWIDTH              = 5;
+  parameter AWIDTH              = 6;
   parameter SHOWAHEAD           = 1;
   parameter ALMOST_FULL_VALUE   = 14;
   parameter ALMOST_EMPTY_VALUE  = 2;
   parameter REGISTER_OUTPUT     = 0;
 
-  parameter NUMBER_OF_TEST_RUNS = 2**AWIDTH * 2;
+  parameter NUMBER_OF_TEST_RUNS = 2**AWIDTH * 4;
   parameter NUMBER_OF_TESTS     = 3;
   parameter TIMEOUT             = 10;
   
@@ -22,7 +22,7 @@ module top_tb;
   logic                aclr;
 
   logic [DWIDTH - 1:0] q_ref;
-  logic [AWIDTH - 1:0] usedw_ref;
+  logic [AWIDTH:0]     usedw_ref;
   logic                full_ref;
   logic                empty_ref;
   logic                almost_full_ref;
@@ -59,7 +59,7 @@ module top_tb;
 
   scfifo #(
     .lpm_width               ( DWIDTH                ),
-    .lpm_widthu              ( AWIDTH                ),
+    .lpm_widthu              ( AWIDTH + 1            ),
     .lpm_numwords            ( 2 ** AWIDTH           ),
     .lpm_showahead           ( "ON"                  ),
     .lpm_type                ( "scfifo"              ),
@@ -183,7 +183,7 @@ module top_tb;
             return;
           end
 
-        if ( usedw[AWIDTH - 1:0] !== usedw_ref )
+        if ( usedw !== usedw_ref )
           begin
             $error( "Different amount of data stored in DUT and ref model! Ref:%d, DUT:%d", usedw, usedw_ref );
             test_succeed = 1'b0;

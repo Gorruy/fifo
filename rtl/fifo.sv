@@ -24,14 +24,11 @@ module fifo #(
   logic [AWIDTH - 1:0]      rd_ptr;
   logic [AWIDTH - 1:0]      wr_ptr;
   logic [AWIDTH - 1:0]      read_address;
-  logic [DWIDTH - 1:0]      q_tmp;
-  logic [1:0][DWIDTH - 1:0] data_buf;
   logic [DWIDTH - 1:0]      mem [2**AWIDTH - 1:0];
 
   assign almost_empty_o = ( usedw_o < ALMOST_EMPTY_VALUE );
   assign almost_full_o  = ( usedw_o >= ALMOST_FULL_VALUE );
-  assign q_tmp          = ( mem[read_address] );
-  assign q_o            = ( q_tmp );
+  assign q_o            = ( mem[read_address] );
   assign full_o         = ( usedw_o == 2**AWIDTH);
 
   always_ff @( posedge clk_i )
