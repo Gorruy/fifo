@@ -21,7 +21,7 @@ module top_tb;
   logic                aclr;
 
   logic [DWIDTH - 1:0] q_ref;
-  logic [AWIDTH - 1:0] usedw_ref;
+  logic [AWIDTH:0]     usedw_ref;
   logic                full_ref;
   logic                empty_ref;
   logic                almost_full_ref;
@@ -32,7 +32,7 @@ module top_tb;
   logic                wrreq;
   logic                rdreq;
   logic [DWIDTH - 1:0] q;
-  logic [AWIDTH - 1:0] usedw;
+  logic [AWIDTH:0]     usedw;
   logic                full;
   logic                empty;
   logic                almost_full;
@@ -58,7 +58,7 @@ module top_tb;
 
 scfifo #(
   .lpm_width               ( DWIDTH                ),
-  .lpm_widthu              ( AWIDTH                ),
+  .lpm_widthu              ( AWIDTH + 1            ),
   .lpm_numwords            ( 2 ** AWIDTH           ),
   .lpm_showahead           ( "ON"                  ),
   .lpm_type                ( "scfifo"              ),
