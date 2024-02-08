@@ -30,7 +30,7 @@ module fifo #(
 
   assign almost_empty_o = ( usedw_o < ALMOST_EMPTY_VALUE );
   assign almost_full_o  = ( usedw_o >= ALMOST_FULL_VALUE );
-  assign q_tmp          = mem[read_address];
+  assign q_tmp          = ( mem[read_address] );
   assign q_o            = ( q_tmp );
   assign full_o         = ( usedw_o == 2**AWIDTH);
 
