@@ -1,20 +1,24 @@
+`timescale 1ps/1ps
+
 module top_tb;
 
-  parameter DWIDTH             = 32;
-  parameter AWIDTH             = 32;
-  parameter SHOWAHEAD          = 1;
-  parameter ALMOST_FULL_VALUE  = 20;
-  parameter ALMOST_EMPTY_VALUE = 20;
-  parameter REGISTER_OUTPUT    = 0;
+  parameter DWIDTH              = 32;
+  parameter AWIDTH              = 4;
+  parameter SHOWAHEAD           = 1;
+  parameter ALMOST_FULL_VALUE   = 14;
+  parameter ALMOST_EMPTY_VALUE  = 2;
+  parameter REGISTER_OUTPUT     = 0;
+
+  parameter NUMBER_OF_TEST_RUNS = 2**AWIDTH * 2;
+  parameter TIMEOUT             = 10;
   
   bit                  clk;
   logic                srst;
 
   logic [DWIDTH - 1:0] data_ref;
-  logic                wrreq;
-  logic                rdreq;
+  logic                wrreq_ref;
+  logic                rdreq_ref;
   logic                aclr;
-  logic                sclr;
 
   logic [DWIDTH - 1:0] q_ref;
   logic [AWIDTH - 1:0] usedw_ref;
@@ -25,12 +29,32 @@ module top_tb;
   logic [1:0]          eccstatus;
 
   logic [DWIDTH - 1:0] data;
+  logic                wrreq;
+  logic                rdreq;
   logic [DWIDTH - 1:0] q;
   logic [AWIDTH - 1:0] usedw;
   logic                full;
   logic                empty;
   logic                almost_full;
   logic                almost_empty;
+
+  logic                srst_done;
+  bit                  test_succeed;
+
+  initial forever #5 clk = !clk;
+
+  default clocking cb @( posedge clk );
+  endclocking
+
+  initial 
+    begin
+      srst      <= 1'b0;
+      ##1;
+      srst      <= 1'b1;
+      ##1;
+      srst      <= 1'b0;
+      srst_done <= 1'b1;
+    end
 
 scfifo #(
   .lpm_width               ( DWIDTH                ),
@@ -50,22 +74,19 @@ scfifo #(
   .maximum_depth           ( 0                     ),
   .enable_ecc              ( "FALSE"               )
 ) fifo_ref ( 
-// INPUT PORT DECLARATION
-  .data                 ( data_ref                 ),
-  .clock                ( clk                      ),
-  .wrreq                ( wrreq                    ),
-  .rdreq                ( rdreq                    ),
-  .aclr                 ( aclr                     ),
-  .sclr                 ( sclr                     ),
-
-// OUTPUT PORT DECLARATION
-  .q                    ( q_ref                   ),
-  .usedw                ( usedw_ref               ),
-  .full                 ( full_ref                ),
-  .empty                ( empty_ref               ),
-  .almost_full          ( almost_full_ref         ),
-  .almost_empty         ( almost_empty_ref        ),
-  .eccstatus            ( eccstatus               )
+  .data                    ( data_ref              ),
+  .clock                   ( clk                   ),
+  .wrreq                   ( wrreq_ref             ),
+  .rdreq                   ( rdreq_ref             ),
+  .aclr                    ( aclr                  ),
+  .sclr                    ( srst                  ),
+  .q                       ( q_ref                 ),
+  .usedw                   ( usedw_ref             ),
+  .full                    ( full_ref              ),
+  .empty                   ( empty_ref             ),
+  .almost_full             ( almost_full_ref       ),
+  .almost_empty            ( almost_empty_ref      ),
+  .eccstatus               ( eccstatus             )
 );
 
 fifo #(
@@ -74,22 +95,238 @@ fifo #(
   .SHOWAHEAD          ( 1                  ),
   .ALMOST_FULL_VALUE  ( ALMOST_FULL_VALUE  ),
   .ALMOST_EMPTY_VALUE ( ALMOST_EMPTY_VALUE ),
-  .REGISTER_OUTPUT    ( 0                  ),
+  .REGISTER_OUTPUT    ( 0                  )
 ) DUT ( 
-// INPUT PORT DECLARATION
-  .srst_i          ( srst               ),
-  .clk_i           ( clk                ),
-  .wrreq_i         ( wrreq              ),
-  .rdreq_i         ( rdreq              ),
-
-// OUTPUT PORT DECLARATION
-  .q_o             ( q                  ),
-  .usedw_o         ( usedw              ),
-  .full_o          ( full               ),
-  .empty_o         ( empty              ),
-  .almost_full_o   ( almost_full        ),
-  .almost_empty_o  ( almost_empty       ),
-  .eccstatus_o     ( eccstatus          )
+  .srst_i             ( srst               ),
+  .data_i             ( data               ),
+  .clk_i              ( clk                ),
+  .wrreq_i            ( wrreq              ),
+  .rdreq_i            ( rdreq              ),
+  .q_o                ( q                  ),
+  .usedw_o            ( usedw              ),
+  .full_o             ( full               ),
+  .empty_o            ( empty              ),
+  .almost_full_o      ( almost_full        ),
+  .almost_empty_o     ( almost_empty       )
 );
+
+  mailbox #( logic[DWIDTH - 1:0] ) generated_data[1:0];
+
+  mailbox #( logic[DWIDTH - 1:0] ) reference_data = new();
+  mailbox #( logic[DWIDTH - 1:0] ) output_data    = new();
+
+
+  task generate_data( mailbox #( logic[DWIDTH - 1:0] ) generated_data[1:0] );
+    
+    logic[DWIDTH - 1:0] gen_data;
+
+    repeat (NUMBER_OF_TEST_RUNS)
+      begin
+        gen_data = $urandom_range( 2**DWIDTH - 1, 0 );
+
+        foreach ( generated_data[i] )
+          generated_data[i].put( gen_data );
+      end
+
+  endtask
+
+  task send_data ( mailbox #( logic[DWIDTH - 1:0]) generated_data,
+                   int                             no_delay 
+                 );
+
+    logic[DWIDTH - 1:0] data_to_write;
+    int                 random_delay;
+    
+    while ( generated_data.num() )
+      begin
+        random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay;
+        ##(random_delay);
+
+        generated_data.get( data_to_write );
+
+        while ( full_ref === 1'b1 || full === 1'b1 ) 
+          begin
+            ##1;
+          end
+
+        wrreq_ref = 1'b1;
+        data_ref  = data_to_write;
+        wrreq     = 1'b1;
+        data      = data_to_write;
+        ##1;
+        wrreq_ref = 1'b0;
+        wrreq     = 1'b0;
+
+      end
+
+  endtask
+
+  task observe_sessions;
+
+    int timeout_counter;
+
+    timeout_counter = 0;
+    
+    while ( timeout_counter != TIMEOUT )
+      begin
+        @( posedge clk );
+
+        if ( full !== full_ref )
+          begin
+            $error( "DUT and ref model ran out of space differently! Ref:%b, DUT:%b", full, full_ref );
+            test_succeed = 1'b0;
+            return;
+          end
+        
+        if ( empty !== empty_ref )
+          begin
+            $error( "DUT and ref model emptied at different time! Ref:%b, DUT:%b", empty, empty_ref );
+            test_succeed = 1'b0;
+            return;
+          end
+
+        if ( usedw !== usedw_ref )
+          begin
+            $error( "Different amount of data stored in DUT and ref model! Ref:%d, DUT:%d", usedw, usedw_ref );
+            test_succeed = 1'b0;
+            return;
+          end
+
+        if ( almost_empty !== almost_empty_ref )
+          begin
+            $error( "Almost_empty signal at different time! Ref:%b, DUT:%b", almost_empty, almost_empty_ref );
+            test_succeed = 1'b0;
+            return;
+          end
+
+        if ( almost_full !== almost_full_ref )
+          begin
+            $error( "Almost_full signal at different time! Ref:%b, DUT:%b", almost_full, almost_full_ref );
+            test_succeed = 1'b0;
+            return;
+          end
+
+        if ( q !== q_ref )
+          begin
+            $error( "Data from DUT and ref model differ!: Ref:%b, DUT:%b", q_ref, q );
+            test_succeed = 1'b0;
+            return;
+          end
+
+        if ( wrreq || rdreq )
+          timeout_counter = 0;
+        else
+          timeout_counter += 1;
+      end
+
+  endtask
+
+  task read_data( mailbox #( logic[DWIDTH - 1:0] ) reference_data,
+                  mailbox #( logic[DWIDTH - 1:0] ) output_data,
+                  int                              no_delay
+                );
+
+    logic[DWIDTH - 1:0] read_data;
+    int                 random_delay;
+
+    repeat(NUMBER_OF_TEST_RUNS)
+      begin
+        random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay;
+        ##(random_delay);
+
+        while ( empty_ref === 1'b1 || empty === 1'b1 ) 
+          ##1;
+
+        rdreq_ref = 1'b1;
+        rdreq     = 1'b1;
+        @( posedge clk );
+        rdreq_ref = 1'b0;
+        rdreq     = 1'b0;
+
+        @( posedge clk );
+
+        read_data = q;
+        output_data.put( read_data );
+
+        read_data = q_ref;
+        reference_data.put( read_data );
+
+      end
+
+  endtask
+
+  task compare_data( mailbox #( logic[DWIDTH - 1:0] ) reference_data,
+                     mailbox #( logic[DWIDTH - 1:0] ) output_data
+                    );
+
+    logic[DWIDTH - 1:0] ref_data, out_data;
+    int                 portion_number;
+
+    if ( reference_data.num() != output_data.num() )
+      begin
+        test_succeed = 1'b0;
+        $error( "DUT and ref model read different amount of data! Ref:%d,DUT:%d", reference_data.num(), output_data.num() );
+        return;
+      end
+
+    while ( reference_data.num() )
+      begin
+        reference_data.get(ref_data);
+        output_data.get(out_data);
+
+        if ( ref_data !== out_data )
+          begin
+            test_succeed = 1'b0;
+            $error( "Data from DUT and ref model differ!: Ref:%b, DUT:%b at:%d", ref_data, out_data, portion_number );
+            return;
+          end
+        portion_number += 1;
+      end
+
+  endtask
+
+  initial begin
+    test_succeed = 1'b1;
+    rdreq_ref = 1'b0;
+    rdreq     = 1'b0;
+    wrreq_ref = 1'b0;
+    wrreq     = 1'b0;
+    aclr      = 1'b0;
+
+    foreach( generated_data[i] )
+      begin
+        generated_data[i] = new();
+      end
+
+    $display("Simulation started!");
+    generate_data( generated_data );
+    wait( srst_done === 1'b1 );
+
+    $display("Tests with random delays started!");
+
+    fork
+      send_data( generated_data[0], 1 );
+      observe_sessions();
+      read_data( reference_data, output_data, 1 );
+    join
+    $display("Tests without time delay started!");
+
+    fork
+      send_data( generated_data[1], 0 );
+      observe_sessions();
+      read_data( reference_data, output_data, 0 );
+    join
+
+    compare_data( reference_data, output_data );
+    $display("Simulation is over!");
+
+    if ( test_succeed )
+      begin
+        $display("All tests passed!");
+      end
+
+    $stop();
+
+  end
 
 endmodule
