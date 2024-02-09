@@ -312,7 +312,6 @@ module top_tb;
 
     $display("Tests with rare read started!");
     fork
-      // checks cases when fifo becomes full
       send_data( generated_data[4], 1, 0 );
       observe_sessions();
       read_data( 0, 0 );
@@ -320,7 +319,6 @@ module top_tb;
 
     $display("Tests with rare write started!");
     fork
-      // checks cases when fifo becomes full
       send_data( generated_data[5], 0, 0 );
       observe_sessions();
       read_data( 1, 0 );
