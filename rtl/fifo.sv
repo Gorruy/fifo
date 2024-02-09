@@ -21,10 +21,10 @@ module fifo #(
   output logic                almost_empty_o
 );
 
-  logic [AWIDTH - 1:0]      rd_ptr;
-  logic [AWIDTH - 1:0]      wr_ptr;
-  logic [AWIDTH - 1:0]      read_address;
-  logic [DWIDTH - 1:0]      mem [2**AWIDTH - 1:0];
+  logic [AWIDTH - 1:0] rd_ptr;
+  logic [AWIDTH - 1:0] wr_ptr;
+  logic [AWIDTH - 1:0] read_address;
+  logic [DWIDTH - 1:0] mem [2**AWIDTH - 1:0];
 
   assign almost_empty_o = ( usedw_o < ALMOST_EMPTY_VALUE );
   assign almost_full_o  = ( usedw_o >= ALMOST_FULL_VALUE );
@@ -41,11 +41,11 @@ module fifo #(
 
   always_ff @( posedge clk_i )
     begin
-      if ( full_o )
+      if ( full_o && rdreq_i )
         read_address <= (AWIDTH)'(rd_ptr + 1);
       else if ( !rdreq_i && usedw_o == (AWIDTH + 1)'(1) )
         read_address <= (AWIDTH)'(rd_ptr);
-      else if ( rdreq_i && usedw_o > (AWIDTH + 1)'(1) )
+      else if ( rdreq_i && usedw_o > (AWIDTH + 1)'(1) && !full_o )
         read_address <= (AWIDTH)'(rd_ptr + 1);
     end
 
