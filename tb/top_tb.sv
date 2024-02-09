@@ -3,14 +3,14 @@
 module top_tb;
 
   parameter DWIDTH              = 32;
-  parameter AWIDTH              = 6;
+  parameter AWIDTH              = 4;
   parameter SHOWAHEAD           = 1;
   parameter ALMOST_FULL_VALUE   = 14;
   parameter ALMOST_EMPTY_VALUE  = 2;
   parameter REGISTER_OUTPUT     = 0;
 
   parameter NUMBER_OF_TEST_RUNS = 2**AWIDTH * 4;
-  parameter NUMBER_OF_TESTS     = 3;
+  parameter NUMBER_OF_TESTS     = 6;
   parameter TIMEOUT             = 10;
   
   bit                  clk;
@@ -111,9 +111,9 @@ module top_tb;
     .almost_empty_o     ( almost_empty       )
   );
 
-  mailbox #( logic[DWIDTH - 1:0] ) generated_data[$clog2(NUMBER_OF_TESTS):0];
+  mailbox #( logic[DWIDTH - 1:0] ) generated_data[NUMBER_OF_TESTS - 1:0];
 
-  task generate_data( mailbox #( logic[DWIDTH - 1:0] ) generated_data[$clog2(NUMBER_OF_TESTS):0] );
+  task generate_data( mailbox #( logic[DWIDTH - 1:0] ) generated_data[NUMBER_OF_TESTS - 1:0] );
     
     logic[DWIDTH - 1:0] gen_data;
 
@@ -134,6 +134,7 @@ module top_tb;
 
     logic[DWIDTH - 1:0] data_to_write;
     int                 random_delay;
+    int                 timeout_counter;
     
     while ( generated_data.num() )
       begin
@@ -142,9 +143,15 @@ module top_tb;
 
         generated_data.get( data_to_write );
 
+        timeout_counter = 0;
+
         while ( full_ref === 1'b1 || full === 1'b1 ) 
           begin
             ##1;
+            if ( timeout_counter == TIMEOUT + 1 )
+              return;
+            else
+              timeout_counter += 1;
           end
 
         wrreq_ref = 1'b1;
@@ -225,15 +232,22 @@ module top_tb;
 
     logic[DWIDTH - 1:0] read_data;
     int                 random_delay;
+    int                 timeout_counter;
 
     repeat(NUMBER_OF_TEST_RUNS)
       begin
         random_delay = $urandom_range( TIMEOUT - 1, 0 ) * !no_delay + one_delay;
         ##(random_delay);
 
+        timeout_counter = 0;
+
         while ( empty_ref === 1'b1 || empty === 1'b1 ) 
           begin
             ##1;
+            if ( timeout_counter == TIMEOUT + 1 )
+              return;
+            else
+              timeout_counter += 1;
           end
 
         rdreq_ref = 1'b1;
@@ -281,7 +295,35 @@ module top_tb;
       // checks cases when fifo becomes full
       send_data( generated_data[2], 1, 0 );
       observe_sessions();
+      read_data( 0, 0 );
+    join
+
+    $display("Making fifo full");
+    fork
+      send_data( generated_data[3], 1, 0 );
+      observe_sessions();
+    join
+
+    $display("Emptying fifo");
+    fork
       read_data( 1, 1 );
+      observe_sessions();
+    join
+
+    $display("Tests with rare read started!");
+    fork
+      // checks cases when fifo becomes full
+      send_data( generated_data[4], 1, 0 );
+      observe_sessions();
+      read_data( 0, 0 );
+    join
+
+    $display("Tests with rare write started!");
+    fork
+      // checks cases when fifo becomes full
+      send_data( generated_data[5], 0, 0 );
+      observe_sessions();
+      read_data( 1, 0 );
     join
 
     $display("Simulation is over!");
