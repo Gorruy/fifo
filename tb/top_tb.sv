@@ -261,11 +261,11 @@ module top_tb;
 
   initial begin
     test_succeed = 1'b1;
-    rdreq_ref = 1'b0;
-    rdreq     = 1'b0;
-    wrreq_ref = 1'b0;
-    wrreq     = 1'b0;
-    aclr      = 1'b0;
+    rdreq_ref    = 1'b0;
+    rdreq        = 1'b0;
+    wrreq_ref    = 1'b0;
+    wrreq        = 1'b0;
+    aclr         = 1'b0;
 
     foreach( generated_data[i] )
       begin
