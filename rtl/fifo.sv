@@ -33,7 +33,10 @@ module fifo #(
 
   always_ff @( posedge clk_i )
     begin
-      empty_o <= ( usedw_o == '0 ) || ( usedw_o == (AWIDTH + 1)'(1) && rdreq_i );
+      if ( srst_i )
+        empty_o <= 1'b1;
+      else
+        empty_o <= ( usedw_o == '0 ) || ( usedw_o == (AWIDTH + 1)'(1) && rdreq_i );
     end
 
   always_ff @( posedge clk_i )
