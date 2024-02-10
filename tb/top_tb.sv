@@ -313,17 +313,19 @@ module top_tb;
     $display("Tests with rare read started!");
     fork
       send_data( generated_data[4], 1, 0 );
-      observe_sessions();
       read_data( 0, 0 );
+      observe_sessions();
     join
 
     $display("Tests with rare write started!");
     fork
       send_data( generated_data[5], 0, 0 );
       read_data( 1, 0 );
+      observe_sessions();
     join
-          observe_sessions();
     $display("Simulation is over!");
+
+    observe_sessions();
     ##1;
     wrreq_ref = 1'b1;
     data_ref  = '0;
