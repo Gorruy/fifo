@@ -29,7 +29,7 @@ module fifo #(
   assign almost_empty_o = ( usedw_o < ALMOST_EMPTY_VALUE );
   assign almost_full_o  = ( usedw_o >= ALMOST_FULL_VALUE );
   assign q_o            = ( mem[read_address] );
-  assign full_o         = ( usedw_o == 2**AWIDTH);
+  assign full_o         = ( usedw_o == 2**AWIDTH );
 
   always_ff @( posedge clk_i )
     begin
@@ -64,7 +64,7 @@ module fifo #(
 
   always_ff @( posedge clk_i )
     begin
-      if ( wrreq_i )
+      if ( wrreq_i && !full_o )
         mem[wr_ptr] <= data_i;
     end
 

@@ -2,8 +2,8 @@
 
 module top_tb;
 
-  parameter DWIDTH              = 32;
-  parameter AWIDTH              = 4;
+  parameter DWIDTH              = 320;
+  parameter AWIDTH              = 10;
   parameter SHOWAHEAD           = 1;
   parameter ALMOST_FULL_VALUE   = 14;
   parameter ALMOST_EMPTY_VALUE  = 2;
@@ -320,11 +320,34 @@ module top_tb;
     $display("Tests with rare write started!");
     fork
       send_data( generated_data[5], 0, 0 );
-      observe_sessions();
       read_data( 1, 0 );
     join
-
+          observe_sessions();
     $display("Simulation is over!");
+    ##1;
+    wrreq_ref = 1'b1;
+    data_ref  = '0;
+    wrreq     = 1'b1;
+    data      = '0;
+    ##1;
+    wrreq_ref = 1'b0;
+    wrreq     = 1'b0;
+    ##2;
+
+    ##1;
+    wrreq_ref = 1'b1;
+    data_ref  = '1;
+    wrreq     = 1'b1;
+    data      = '1;
+    rdreq_ref = 1'b1;
+    rdreq     = 1'b1;
+    ##1;
+    wrreq_ref = 1'b0;
+    wrreq     = 1'b0;
+    rdreq_ref = 1'b0;
+    rdreq     = 1'b0;
+    ##5;
+
 
     if ( test_succeed )
       begin
