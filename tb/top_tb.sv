@@ -2,8 +2,8 @@
 
 module top_tb;
 
-  parameter DWIDTH              = 16;
-  parameter AWIDTH              = 4;
+  parameter DWIDTH              = 32;
+  parameter AWIDTH              = 10;
   parameter SHOWAHEAD           = 1;
   parameter ALMOST_FULL_VALUE   = 14;
   parameter ALMOST_EMPTY_VALUE  = 2;
