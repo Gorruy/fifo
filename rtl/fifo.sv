@@ -25,7 +25,10 @@ module fifo #(
   logic [AWIDTH - 1:0] wr_ptr;
   logic [AWIDTH - 1:0] read_address;
 
-  ram ram_inst (
+  ram #(
+    .DWIDTH(DWIDTH),
+    .AWIDTH(AWIDTH)
+    ) ram_inst (
     .rdaddress( read_address ),
     .wraddress( wr_ptr       ),
 	  .clock    ( clk_i        ),
